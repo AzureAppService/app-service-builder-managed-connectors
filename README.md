@@ -9,6 +9,9 @@ urlFragment: app-service-builder-managed-connectors
 
 # Receive and flag a test email with App Service Builder
 
+Fork the [canonical sample](https://github.com/AzureAppService/app-service-builder-managed-connectors) into your GitHub account.
+This integration is not in the Portal template gallery; follow the manual protected-app and connector setup below.
+
 Receive an Outlook event at a protected Node.js 24 / TypeScript app, then flag only a message with your unique test prefix.
 An external Azure Connector Namespace sends the event; your app calls the connector SDK with its managed identity.
 This sample is for preview development and testing.
