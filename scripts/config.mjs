@@ -61,12 +61,12 @@ export function prepare(c) {
     "auth-policy": { properties: {
       mode: "required", primaryBrowserProvider: "entraId",
       entraId: {
-        enabled: true, applicationMode: "customer",
+        state: "Enabled", applicationMode: "customer",
         customerApplication: {
           clientId: c.apiClientId, homeTenantId: c.tenantId, signInMode: "singleTenant",
           workloadIdentityResourceId: c.appIdentity.id, allowedAudiences: [c.apiClientId],
         },
-        tenantIds: [c.tenantId], objectIds: [c.triggerIdentity.principalId],
+        allowedTenantIds: [c.tenantId], allowedObjectIds: [c.triggerIdentity.principalId],
       },
     } },
     connection: { location: c.location, properties: { connectorName: "office365" } },

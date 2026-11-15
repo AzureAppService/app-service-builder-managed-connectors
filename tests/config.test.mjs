@@ -44,8 +44,14 @@ test("configuration keeps callback authorization and outbound connection identit
   const c = fixture(), p = prepare(c), r = runtime(c);
   const auth = p["auth-policy"].properties;
   assert.equal(auth.mode, "required");
-  assert.deepEqual(auth.entraId.objectIds, [c.triggerIdentity.principalId]);
-  assert.deepEqual(auth.entraId.customerApplication.allowedAudiences, [c.apiClientId]);
+  assert.deepEqual(auth.entraId, {
+    state: "Enabled", applicationMode: "customer",
+    customerApplication: {
+      clientId: c.apiClientId, homeTenantId: c.tenantId, signInMode: "singleTenant",
+      workloadIdentityResourceId: c.appIdentity.id, allowedAudiences: [c.apiClientId],
+    },
+    allowedTenantIds: [c.tenantId], allowedObjectIds: [c.triggerIdentity.principalId],
+  });
   assert.equal(p["app-policy"].properties.principal.identity.objectId, c.appIdentity.principalId);
   assert.equal(p["trigger-policy"].properties.principal.identity.objectId, c.triggerIdentity.principalId);
   assert(!("negative-policy" in p));

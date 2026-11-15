@@ -117,7 +117,7 @@ az rest --method get --url "https://management.azure.com$APP_ID/authConfigs/defa
   > .local/auth-readback.json
 ```
 
-Verify **required** customer-Entra authentication, exactly the API client GUID in `allowedAudiences`, the selected tenant, and only the trigger identity's **principal/object ID** in `objectIds`.
+Verify **required** customer-Entra authentication with `entraId.state` set to `Enabled`, exactly the API client GUID in `entraId.customerApplication.allowedAudiences`, the selected tenant in `entraId.allowedTenantIds`, and only the trigger identity's **principal/object ID** in `entraId.allowedObjectIds`.
 No alternate provider or email rule is configured.
 Do not use the identity client ID where an object ID is required.
 Builder's role-presence check establishes app-token shape; it does not enforce a particular role value.
