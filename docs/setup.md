@@ -182,7 +182,8 @@ az rest --method patch --url "$APP_URL" --headers "If-Match=$APP_ETAG" \
   --body @.local/connection-update.json
 ```
 
-The creation Bicep already sets receiver scaling to 1–2; scaling is not writable through app PATCH.
+The creation Bicep sets receiver scaling to 0–2 and preserves idle timeout; Preview requires a minimum of zero.
+Scaling is not writable through app PATCH; do not apply an older generated `scaling.json`.
 On 412 refresh/reconcile before another write; do not repeat Graph federation creation.
 
 ### Save with native Builder CLI
@@ -251,7 +252,7 @@ Do not start a second app through Portal **Create** or deploy this receiver firs
    Wait for terminal deployment success, then verify the active version and exact source commit in **Versions**.
    A successful source save or build is not Node24 activation.
 
-Keep the receiver's minimum 1 / maximum 2 HTTP scaling policy for this experiment.
+Keep the receiver's minimum 0 / maximum 2 HTTP scaling policy and idle timeout for this experiment.
 The manifest has no public health-path exception; default edge reachability401 is not process health proof.
 The allowed empty-batch callback below establishes protected receiver execution.
 Saving variables does not change the active version until deployment.

@@ -57,7 +57,7 @@ resource app 'Microsoft.Web/builderApps@2026-09-01-preview' = {
   properties: {
     scaling: {
       components: [
-        { name: 'receiver', minReplicas: 1, maxReplicas: 2, httpEnabled: true }
+        { name: 'receiver', minReplicas: 0, maxReplicas: 2, httpEnabled: true }
       ]
     }
   }

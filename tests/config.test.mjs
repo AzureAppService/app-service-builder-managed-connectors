@@ -49,6 +49,7 @@ test("configuration keeps callback authorization and outbound connection identit
   assert.equal(p["app-policy"].properties.principal.identity.objectId, c.appIdentity.principalId);
   assert.equal(p["trigger-policy"].properties.principal.identity.objectId, c.triggerIdentity.principalId);
   assert(!("negative-policy" in p));
+  assert(!("scaling" in p), "Creation Bicep owns scaling; generated PATCH bodies must not change it.");
   for (const name of ["trigger-grant", "negative-grant"]) {
     assert.equal(p[name].resourceId, c.apiServicePrincipalId);
     assert.equal(p[name].appRoleId, c.roleId);

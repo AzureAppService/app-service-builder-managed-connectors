@@ -74,9 +74,6 @@ export function prepare(c) {
     "trigger-policy": policy(c.triggerIdentity),
     "trigger-grant": grant(c.triggerIdentity),
     "negative-grant": grant(c.negativeIdentity),
-    scaling: { properties: { scaling: { components: [
-      { name: "receiver", minReplicas: 1, maxReplicas: 2, httpEnabled: true },
-    ] } } },
   };
 }
 
