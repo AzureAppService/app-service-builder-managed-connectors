@@ -142,6 +142,15 @@ jq --slurpfile auth .local/auth-readback.json --slurpfile conn .local/connection
   .local/context.json > .local/context.next.json
 mv .local/context.next.json .local/context.json
 node scripts/config.mjs runtime .local/context.json .local/runtime
+```
+
+Before continuing, use the existing app's Variables page to remove legacy
+`AZURE_CLIENT_ID` and `OFFICE365_CONNECTION_RUNTIME_URL`, then save the generated
+identity-output selector and test prefix from `.local/runtime/variables.json`
+without deploying. Keep unrelated app variables unchanged; ordinary GET
+metadata is not a replacement list of their values.
+
+```bash
 az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID" \
   --body @.local/runtime/redirect.json
 az rest --method post --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID/federatedIdentityCredentials" \

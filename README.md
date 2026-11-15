@@ -17,8 +17,8 @@ An external Azure Connector Namespace sends the event; your app calls the connec
 This sample is for preview development and testing.
 Builder Connections records the existing connection runtime URL and selected
 app identity; external connection creation, OAuth consent and trigger management
-remain separate. Named Connector Namespace delivery remains **Under construction**
-pending deployed customer-journey qualification.
+remain separate. The production catalog advertises Connector Namespace Connections;
+qualification of this revision's deployed callback and mailbox effect remains pending.
 
 In this sample, you learn how to:
 
