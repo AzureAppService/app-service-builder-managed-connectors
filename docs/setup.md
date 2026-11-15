@@ -110,9 +110,9 @@ export APP_ID="$(jq -r .appResourceId .local/context.json)"
 export NS_ID="$(jq -r .namespaceResourceId .local/context.json)"
 export APP_URL="https://management.azure.com$APP_ID?api-version=2026-09-01-preview"
 export NS_URL="https://management.azure.com$NS_ID"
-az rest --method put --url "https://management.azure.com$APP_ID/authConfigs/current?api-version=2026-09-01-preview" \
+az rest --method put --url "https://management.azure.com$APP_ID/authConfigs/default?api-version=2026-09-01-preview" \
   --body @.local/prepare/auth-policy.json
-az rest --method get --url "https://management.azure.com$APP_ID/authConfigs/current?api-version=2026-09-01-preview" \
+az rest --method get --url "https://management.azure.com$APP_ID/authConfigs/default?api-version=2026-09-01-preview" \
   > .local/auth-readback.json
 ```
 
@@ -146,7 +146,18 @@ az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$APP
   --body @.local/runtime/redirect.json
 az rest --method post --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID/federatedIdentityCredentials" \
   --body @.local/runtime/federation.json
-az rest --method patch --url "$APP_URL" --body @.local/runtime/variables.json
+az rest --method get --url "$APP_URL" > .local/current-app.json
+jq --slurpfile desired .local/runtime/variables.json '
+  .properties.versionConfiguration as $current |
+  $desired[0].properties.versionConfiguration as $next |
+  {properties:{versionConfiguration:{
+    connections: (($current.connections // [] | map(select(.name != "outlook")))
+      + $next.connections)
+  }}}
+' .local/current-app.json > .local/connection-update.json
+APP_ETAG="$(jq -er .etag .local/current-app.json)"
+az rest --method patch --url "$APP_URL" --headers "If-Match=$APP_ETAG" \
+  --body @.local/connection-update.json
 az rest --method patch --url "$APP_URL" --body @.local/prepare/scaling.json
 ```
 
@@ -155,6 +166,15 @@ The generator stops if they do not match the selected tenant/app identity; never
 Read back the API registration, both role grants, federation and both policies.
 The negative identity gets no connection policy.
 No policy limits OAuth to flagging alone; the deliberately narrow application behavior is not an IAM permission boundary.
+The app identity must already be assigned with committed client/principal IDs
+before saving the connection. The ETag guards concurrent changes; on 412,
+refresh and reconcile instead of overwriting. The update moves this experiment's outbound routing and identity selection into
+Connections and retains other named connections/settings. Before this PATCH,
+use the app's Variables page to remove legacy `AZURE_CLIENT_ID` and
+`OFFICE365_CONNECTION_RUNTIME_URL`, then save only the generated selector and
+test prefix from `.local/runtime/variables.json` without deploying. Do not
+copy ordinary GET variable metadata into a replacement variables list or
+overwrite unrelated app variables. Read back the connection before deployment.
 
 ## 4. Connect your fork and deploy in Builder Portal
 
@@ -163,7 +183,9 @@ Do not start a second app through Portal **Create** or deploy this receiver firs
 
 1. Open [Builder Portal](https://builder.appservice.azure.com/), select your verified directory/subscription, and open `bld-connectors-<run>`.
 2. In **Authentication**, verify required customer-Entra settings above.
-   In **Identity**, verify only the app UAMI; in **Variables**, verify the three desired variables.
+   In **Identity**, verify the app UAMI. In **Connections**, verify `outlook`,
+   its selected app UAMI and `OFFICE365_CONNECTION_RUNTIME_URL` mapping. In
+   **Variables**, verify only the test prefix and generated-output selector.
 3. Open **Settings → Source Control**, sign in to the intended GitHub account and select **your fork**, branch and repository root.
    Review the GitHub App publisher and grant installation access to that fork if needed.
 4. Keep automatic deployment **off** and select **Save**, not **Save and deploy**, until settings are verified.
@@ -176,7 +198,7 @@ Keep the receiver's minimum 1 / maximum 2 HTTP scaling policy for this experimen
 The manifest has no public health-path exception; default edge reachability401 is not process health proof.
 The allowed empty-batch callback below establishes protected receiver execution.
 Saving variables does not change the active version until deployment.
-Read `authConfigs/current` again and wait for `propagationPending: false` and matching `revision` / `appliedRevision` before testing.
+Read `authConfigs/default` again and wait for `propagationPending: false` and matching `revision` / `appliedRevision` before testing.
 
 ## 5. Verify authentication without mailbox effects
 

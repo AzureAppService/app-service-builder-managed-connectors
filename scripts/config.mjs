@@ -110,10 +110,15 @@ export function runtime(c) {
     },
     redirect: { web: { redirectUris: [`${origin.origin}/.auth/login/aad/callback`] } },
     variables: { properties: { versionConfiguration: { variables: [
-      { name: "AZURE_CLIENT_ID", value: c.appIdentity.clientId },
-      { name: "OFFICE365_CONNECTION_RUNTIME_URL", value: c.connectionRuntimeUrl },
+      { name: "CONNECTOR_IDENTITY_CLIENT_ID_ENV", value: `Identity_id_bld_app_${c.run}_ClientId` },
       { name: "TEST_SUBJECT_PREFIX", value: experiment(c.run) },
-    ] } } },
+    ], connections: [{
+      name: "outlook", type: "connectorNamespaceConnection",
+      resourceId: `${c.namespaceResourceId}/connections/outlook-test`,
+      managedIdentity: { type: "UserAssigned", resourceId: c.appIdentity.id },
+      settings: [{ field: "connectionRuntimeUrl", value: c.connectionRuntimeUrl,
+        environmentVariable: "OFFICE365_CONNECTION_RUNTIME_URL" }],
+    }] } } },
     "mail-trigger": { properties: {
       description: "Two-message experiment; prefix-filtered Outlook event only",
       connectionDetails: { connectorName: "office365", connectionName: "outlook-test" },

@@ -15,7 +15,10 @@ This integration is not in the Portal template gallery; follow the manual protec
 Receive an Outlook event at a protected Node.js 24 / TypeScript app, then flag only a message with your unique test prefix.
 An external Azure Connector Namespace sends the event; your app calls the connector SDK with its managed identity.
 This sample is for preview development and testing.
-Native Builder connector selection and trigger management are not available.
+Builder Connections records the existing connection runtime URL and selected
+app identity; external connection creation, OAuth consent and trigger management
+remain separate. Named Connector Namespace delivery remains **Under construction**
+pending deployed customer-journey qualification.
 
 In this sample, you learn how to:
 
@@ -59,6 +62,24 @@ The outbound app identity gets only its connection-scoped policy.
 The namespace sender gets a separate policy and API role, while Builder allows only its exact tenant/object ID.
 No application secret, Azure RBAC grant, Graph runtime permission or azd project is needed.
 Application code relies on this edge gate; never expose it on an unprotected host or disable auth for callbacks.
+
+On **Connections**, select **Connector Namespace Connection**, the existing
+`outlook-test` child resource and the already assigned app UAMI. Rename the
+runtime URL mapping to `OFFICE365_CONNECTION_RUNTIME_URL`. Keep
+`CONNECTOR_IDENTITY_CLIENT_ID_ENV` in Variables with the generated output name
+`Identity_id_bld_app_<run>_ClientId`, replacing `<run>` with this experiment's
+actual suffix. This names the output; it does not store a client ID or token.
+The SDK reads that selected identity's generated client ID. Remove legacy
+`AZURE_CLIENT_ID` and manual runtime-URL settings before saving the complete
+connection, without an intermediate deployment. The generator in the setup
+guide prepares this same object and preserves callback/consent controls.
+This profile requires managed identity; mailbox OAuth is owned by the external
+Connector Namespace, not a Builder password or key setting.
+
+The [Connections guide](https://builder.appservice.azure.com/docs/guides/connect-to-services/)
+documents client availability and the ETag-guarded ARM contract. Installed CLI
+0.0.2 has no Connections command. Saving setup does not deploy or test a mailbox
+operation; verify the same isolated callback and matching-message effect below.
 
 ## 3. Verify the callback and mailbox effect
 

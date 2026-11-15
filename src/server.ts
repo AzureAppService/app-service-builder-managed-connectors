@@ -1,6 +1,7 @@
 import { ManagedIdentityTokenProvider } from "@azure/connectors";
 import { Office365Client } from "@azure/connectors/generated/Office365Extensions";
 import { createApp } from "./app.js";
+import { connectionClientId } from "./identity.js";
 
 function setting(name: string): string {
   const value = process.env[name];
@@ -12,10 +13,7 @@ const connection = new URL(setting("OFFICE365_CONNECTION_RUNTIME_URL"));
 if (connection.protocol !== "https:" || connection.username || connection.password) {
   throw new Error("The connection runtime URL must be HTTPS without embedded credentials.");
 }
-const clientId = setting("AZURE_CLIENT_ID");
-if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(clientId)) {
-  throw new Error("AZURE_CLIENT_ID must be the app managed identity client GUID.");
-}
+const clientId = connectionClientId(process.env);
 const port = Number(process.env.PORT ?? "8080");
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be an integer from 1 to 65535.");
