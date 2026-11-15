@@ -54,7 +54,8 @@ Keep the root `builder.yaml`, which compiles the app, stages production dependen
 ## 2. Configure and deploy the protected app
 
 Follow the [manual setup guide](docs/setup.md#1-provision-an-isolated-experiment) in order.
-It supplies executable Azure CLI/Bicep commands, offline request templates and the Builder Portal source/deploy steps.
+It supplies executable Azure CLI/Bicep resource/policy commands, native Builder CLI connection commands and Portal or ZIP-source deployment alternatives.
+Native Connections has an explicit release prerequisite; ARM remains usable with older CLI archives.
 The sequence creates three managed identities, a namespace, a **source-free** Builder app and a single-tenant receiver API.
 It configures **required** customer-Entra authentication **before** attaching source or deploying.
 
@@ -77,8 +78,9 @@ This profile requires managed identity; mailbox OAuth is owned by the external
 Connector Namespace, not a Builder password or key setting.
 
 The [Connections guide](https://builder.appservice.azure.com/docs/guides/connect-to-services/)
-documents client availability and the ETag-guarded ARM contract. Installed CLI
-0.0.2 has no Connections command. Saving setup does not deploy or test a mailbox
+documents client availability and the ETag-guarded ARM contract. The
+[setup guide](docs/setup.md#save-with-native-builder-cli) has concrete native
+commands with a release prerequisite. Saving setup does not deploy or test a mailbox
 operation; verify the same isolated callback and matching-message effect below.
 
 ## 3. Verify the callback and mailbox effect

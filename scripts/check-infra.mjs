@@ -10,7 +10,11 @@ const namespace = resources.find(r => r.type === "Microsoft.Web/connectorGateway
 const app = resources.find(r => r.type === "Microsoft.Web/builderApps");
 assert.equal(Object.keys(namespace.identity.userAssignedIdentities).length, 2);
 assert.equal(Object.keys(app.identity.userAssignedIdentities).length, 1);
-assert.deepEqual(app.properties, {});
+assert.deepEqual(app.properties, {
+  scaling: { components: [
+    { name: "receiver", minReplicas: 1, maxReplicas: 2, httpEnabled: true },
+  ] },
+});
 assert.equal(template.outputs.configuration.type, "object");
 assert(!JSON.stringify(template).includes("roleAssignments"));
 console.log("Compiled infrastructure has only the five expected resources, no source, secrets or Azure RBAC grants.");

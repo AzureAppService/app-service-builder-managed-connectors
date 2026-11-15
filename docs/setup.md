@@ -2,7 +2,8 @@
 
 Create an isolated Connector Namespace and protect its Builder receiver before deploying code.
 Run commands from the repository root in one Bash session.
-Use Azure CLI/Bicep for resources and directory setup, then Builder Portal for GitHub source and deployment.
+Use Azure CLI/Bicep for resources and directory setup, then choose Portal or native Builder CLI for named configuration and source deployment.
+Native Connections requires a release that lists `app connections` in help; this guide's ARM path does not depend on that release.
 
 ## Prerequisites
 
@@ -144,22 +145,34 @@ mv .local/context.next.json .local/context.json
 node scripts/config.mjs runtime .local/context.json .local/runtime
 ```
 
-Before continuing, use the existing app's Variables page to remove legacy
-`AZURE_CLIENT_ID` and `OFFICE365_CONNECTION_RUNTIME_URL`, then save the generated
-identity-output selector and test prefix from `.local/runtime/variables.json`
-without deploying. Keep unrelated app variables unchanged; ordinary GET
-metadata is not a replacement list of their values.
-
 ```bash
 az rest --method patch --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID" \
   --body @.local/runtime/redirect.json
 az rest --method post --url "https://graph.microsoft.com/v1.0/applications/$APP_OBJECT_ID/federatedIdentityCredentials" \
   --body @.local/runtime/federation.json
+```
+
+Choose one of the following connection-save methods, not both.
+Neither deploys or performs mailbox consent.
+
+### Save with ARM
+
+For the new source-less app created in step 1, save its two app controls and named connection atomically.
+This path deliberately stops if manual variables already exist, rather than reconstruct their values from GET.
+For an existing configured app, use the CLI merge alternative below.
+
+```bash
 az rest --method get --url "$APP_URL" > .local/current-app.json
+jq -e '(.properties.versionConfiguration.variables // [] | length) == 0' \
+  .local/current-app.json >/dev/null || {
+    printf '%s\n' 'Manual variables already exist. Use the CLI merge alternative; do not replace their values.' >&2
+    exit 1
+  }
 jq --slurpfile desired .local/runtime/variables.json '
   .properties.versionConfiguration as $current |
   $desired[0].properties.versionConfiguration as $next |
   {properties:{versionConfiguration:{
+    variables: $next.variables,
     connections: (($current.connections // [] | map(select(.name != "outlook")))
       + $next.connections)
   }}}
@@ -167,8 +180,36 @@ jq --slurpfile desired .local/runtime/variables.json '
 APP_ETAG="$(jq -er .etag .local/current-app.json)"
 az rest --method patch --url "$APP_URL" --headers "If-Match=$APP_ETAG" \
   --body @.local/connection-update.json
-az rest --method patch --url "$APP_URL" --body @.local/prepare/scaling.json
 ```
+
+The creation Bicep already sets receiver scaling to 1–2; scaling is not writable through app PATCH.
+On 412 refresh/reconcile before another write; do not repeat Graph federation creation.
+
+### Save with native Builder CLI
+
+Requires a release whose `builder app connections --help` lists add/update/list/status/remove.
+Use the same generated complete `outlook` object, selected UAMI and actual runtime URL.
+The app controls merge preserves unrelated values without reading their plaintext.
+If migrating, first delete only existing legacy `AZURE_CLIENT_ID` and `OFFICE365_CONNECTION_RUNTIME_URL` with `builder app version-config variables delete --variable-name <name>` and these app coordinates; do not deploy between saves.
+
+```bash
+APP="$(jq -r .appName .local/context.json)"
+jq '.properties.versionConfiguration.variables | map({key:.name,value:.value}) | from_entries' \
+  .local/runtime/variables.json > .local/app-controls.json
+jq '.properties.versionConfiguration.connections[0]' \
+  .local/runtime/variables.json > .local/outlook-connection.json
+builder login
+builder app version-config variables update --name "$APP" -s "$SUBSCRIPTION_ID" -g "$RG" \
+  --settings '@.local/app-controls.json'
+builder app connections list --name "$APP" -s "$SUBSCRIPTION_ID" -g "$RG" --json
+builder app connections add --name "$APP" -s "$SUBSCRIPTION_ID" -g "$RG" \
+  --connection-json '@.local/outlook-connection.json'
+builder app connections status --name "$APP" -s "$SUBSCRIPTION_ID" -g "$RG" --connection-name outlook
+```
+
+If the name already exists, use `update --connection-json` with the same complete object.
+`remove --connection-name outlook` changes pending configuration only, not identity assignments or external policies.
+Do not use `--grant-access`: this service needs a connection access policy, not namespace Azure RBAC.
 
 Use the actual Builder-returned redirect and `entraSetup` federation values.
 The generator stops if they do not match the selected tenant/app identity; never invent issuer/subject values.
@@ -178,14 +219,21 @@ No policy limits OAuth to flagging alone; the deliberately narrow application be
 The app identity must already be assigned with committed client/principal IDs
 before saving the connection. The ETag guards concurrent changes; on 412,
 refresh and reconcile instead of overwriting. The update moves this experiment's outbound routing and identity selection into
-Connections and retains other named connections/settings. Before this PATCH,
-use the app's Variables page to remove legacy `AZURE_CLIENT_ID` and
-`OFFICE365_CONNECTION_RUNTIME_URL`, then save only the generated selector and
-test prefix from `.local/runtime/variables.json` without deploying. Do not
-copy ordinary GET variable metadata into a replacement variables list or
-overwrite unrelated app variables. Read back the connection before deployment.
+Connections and retains other named connections/settings.
+Read back the connection before deployment; neither method reads tokens or changes the connection's OAuth consent.
 
 ## 4. Connect your fork and deploy in Builder Portal
+
+For a terminal ZIP-source alternative after protection/configuration above:
+
+```bash
+git archive --format=zip --output=../connector-source.zip HEAD
+builder app deploy --name "bld-connectors-$RUN" -s "$SUBSCRIPTION_ID" -g "$RG" \
+  --source-archive ../connector-source.zip --manifest ./builder.yaml --json
+```
+
+Wait for terminal success and verify the exact active source/version.
+This does not perform Outlook OAuth consent, create trigger subscriptions or prove a mailbox effect; continue verification below.
 
 The **empty app already exists** and required auth is configured.
 Do not start a second app through Portal **Create** or deploy this receiver first and add protection later.
