@@ -173,7 +173,7 @@ jq --slurpfile desired .local/runtime/variables.json '
   $desired[0].properties.versionConfiguration as $next |
   {properties:{versionConfiguration:{
     variables: $next.variables,
-    connections: (($current.connections // [] | map(select(.name != "outlook")))
+    connections: (($current.connections // [] | map(select((.name | ascii_downcase) != "outlook")))
       + $next.connections)
   }}}
 ' .local/current-app.json > .local/connection-update.json
