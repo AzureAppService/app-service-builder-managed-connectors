@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { prepare, registration, runtime } from "../scripts/config.mjs";
 import { runTrigger } from "../scripts/run-trigger.mjs";
+import { connectionClientId } from "../dist/identity.js";
 
 function fixture() {
   const c = { run: "localtest", subscriptionId: randomUUID(), tenantId: randomUUID(),
@@ -43,11 +44,18 @@ test("configuration keeps callback authorization and outbound connection identit
   const c = fixture(), p = prepare(c), r = runtime(c);
   const auth = p["auth-policy"].properties;
   assert.equal(auth.mode, "required");
-  assert.deepEqual(auth.entraId.objectIds, [c.triggerIdentity.principalId]);
-  assert.deepEqual(auth.entraId.customerApplication.allowedAudiences, [c.apiClientId]);
+  assert.deepEqual(auth.entraId, {
+    state: "Enabled", applicationMode: "customer",
+    customerApplication: {
+      clientId: c.apiClientId, homeTenantId: c.tenantId, signInMode: "singleTenant",
+      workloadIdentityResourceId: c.appIdentity.id, allowedAudiences: [c.apiClientId],
+    },
+    allowedTenantIds: [c.tenantId], allowedObjectIds: [c.triggerIdentity.principalId],
+  });
   assert.equal(p["app-policy"].properties.principal.identity.objectId, c.appIdentity.principalId);
   assert.equal(p["trigger-policy"].properties.principal.identity.objectId, c.triggerIdentity.principalId);
   assert(!("negative-policy" in p));
+  assert(!("scaling" in p), "Creation Bicep owns scaling; generated PATCH bodies must not change it.");
   for (const name of ["trigger-grant", "negative-grant"]) {
     assert.equal(p[name].resourceId, c.apiServicePrincipalId);
     assert.equal(p[name].appRoleId, c.roleId);
@@ -62,8 +70,27 @@ test("configuration keeps callback authorization and outbound connection identit
   assert.deepEqual(r["control-negative"].properties.notificationDetails.body, { body: { value: [] } });
   assert.equal(r["control-negative"].properties.notificationDetails.authentication.identity, c.negativeIdentity.id);
   assert.equal(r["control-wrong-audience"].properties.notificationDetails.authentication.audience, "https://management.azure.com/");
-  assert.equal(r.variables.properties.versionConfiguration.variables[0].value, c.appIdentity.clientId);
+  const config = r.variables.properties.versionConfiguration;
+  assert.deepEqual(config.connections[0].managedIdentity, { type: "UserAssigned", resourceId: c.appIdentity.id });
+  assert.equal(config.connections[0].resourceId, `${c.namespaceResourceId}/connections/outlook-test`);
+  assert.equal(config.connections[0].settings[0].environmentVariable, "OFFICE365_CONNECTION_RUNTIME_URL");
+  assert.equal(config.variables[0].value, `Identity_id_bld_app_${c.run}_ClientId`);
+  assert.equal(connectionClientId({
+    CONNECTOR_IDENTITY_CLIENT_ID_ENV: config.variables[0].value,
+    [config.variables[0].value]: c.appIdentity.clientId,
+  }), c.appIdentity.clientId);
   assert.equal(r.federation.subject, c.appIdentity.principalId);
+});
+
+test("SDK identity selection requires the chosen generated output and rejects conflicting legacy selection", () => {
+  const clientId = randomUUID();
+  assert.equal(connectionClientId({ AZURE_CLIENT_ID: clientId }), clientId);
+  for (const env of [
+    { CONNECTOR_IDENTITY_CLIENT_ID_ENV: "Identity_sample_ClientId" },
+    { CONNECTOR_IDENTITY_CLIENT_ID_ENV: "AZURE_CLIENT_ID", AZURE_CLIENT_ID: clientId },
+    { CONNECTOR_IDENTITY_CLIENT_ID_ENV: "Identity_sample_ClientId", Identity_sample_ClientId: clientId, AZURE_CLIENT_ID: clientId },
+    { AZURE_CLIENT_ID: "not-a-guid" },
+  ]) assert.throws(() => connectionClientId(env));
 });
 
 test("configuration rejects cross-experiment identities and invented federation", () => {

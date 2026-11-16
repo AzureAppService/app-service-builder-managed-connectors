@@ -54,7 +54,13 @@ resource app 'Microsoft.Web/builderApps@2026-09-01-preview' = {
       '${appIdentity.id}': {}
     }
   }
-  properties: {}
+  properties: {
+    scaling: {
+      components: [
+        { name: 'receiver', minReplicas: 0, maxReplicas: 2, httpEnabled: true }
+      ]
+    }
+  }
 }
 
 output configuration object = {
